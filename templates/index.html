@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0A0F0C">
+<title>Iron Nest Ballistics — Fire Director</title>
+<script>
+  // Applied before first paint to avoid a flash of the wrong theme on load.
+  (function () {
+    try {
+      if (localStorage.getItem("iron_nest_theme") === "ironclad") {
+        document.documentElement.setAttribute("data-theme", "ironclad");
+      }
+    } catch (err) { /* localStorage unavailable — default FDC theme renders */ }
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Stencil:wght@700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Oswald:wght@500;600;700&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div class="scanline-overlay" aria-hidden="true"></div>
+
+<div class="theme-bar">
+  <span class="theme-bar-label">DISPLAY MODE</span>
+  <div class="theme-toggle" id="theme-toggle" role="group" aria-label="Theme selector">
+    <button type="button" class="theme-btn" data-theme-value="fdc" aria-pressed="true">FDC</button>
+    <button type="button" class="theme-btn" data-theme-value="ironclad" aria-pressed="false">IRONCLAD</button>
+  </div>
+  <button type="button" class="help-btn" id="help-btn" aria-haspopup="dialog" aria-controls="help-modal">
+    <span class="help-btn-icon" aria-hidden="true">?</span> HELP
+  </button>
+</div>
+
+<div class="app-shell">
+
+  <!-- ===================== LEFT HALF ===================== -->
+  <section class="panel panel-left" aria-label="Data entry panel">
+    <span class="rivet rivet-tl" aria-hidden="true"></span>
+    <span class="rivet rivet-tr" aria-hidden="true"></span>
+    <span class="rivet rivet-bl" aria-hidden="true"></span>
+    <span class="rivet rivet-br" aria-hidden="true"></span>
+
+    <header class="console-header">
+      <div class="nameplate nameplate-main chamfer-2">
+        <span class="crosshair" aria-hidden="true">&#10011;</span>
+        IRON NEST — FDC
+      </div>
+      <p class="console-sub">FIRE DIRECTOR / BALLISTIC COMPUTATION CENTER</p>
+    </header>
+
+    <form id="tiro-form" autocomplete="off">
+
+      <!-- ---- DISTANCE ---- -->
+      <div class="field-group">
+        <div class="nameplate nameplate-small">
+          <span class="crosshair" aria-hidden="true">&#10011;</span> RANGE
+        </div>
+        <label class="field-label" for="distancia">DISTANCE <span class="unit">(KM)</span></label>
+        <div class="input-wrap" id="wrap-distancia" data-field="distancia">
+          <input type="text" id="distancia" class="field-input" inputmode="none" readonly
+                 autocomplete="off" placeholder="0" aria-label="Distance in kilometers">
+          <span class="input-cursor" aria-hidden="true"></span>
+          <span class="input-bracket bracket-l" aria-hidden="true">[</span>
+          <span class="input-bracket bracket-r" aria-hidden="true">]</span>
+        </div>
+      </div>
+
+      <!-- ---- CHARGES ---- -->
+      <div class="field-group">
+        <div class="nameplate nameplate-small">
+          <span class="crosshair" aria-hidden="true">&#10011;</span> PROPELLANT CHARGE
+        </div>
+        <div class="charge-selector" id="charge-selector" role="group" aria-label="Charge selection">
+          <button type="button" class="charge-btn chamfer-2" data-carga="1" aria-pressed="false">
+            <span class="led" aria-hidden="true"></span><span class="charge-num">1</span>
+          </button>
+          <button type="button" class="charge-btn chamfer-2" data-carga="2" aria-pressed="false">
+            <span class="led" aria-hidden="true"></span><span class="charge-num">2</span>
+          </button>
+          <button type="button" class="charge-btn chamfer-2" data-carga="3" aria-pressed="false">
+            <span class="led" aria-hidden="true"></span><span class="charge-num">3</span>
+          </button>
+          <button type="button" class="charge-btn chamfer-2" data-carga="4" aria-pressed="false">
+            <span class="led" aria-hidden="true"></span><span class="charge-num">4</span>
+          </button>
+          <button type="button" class="charge-btn chamfer-2" data-carga="5" aria-pressed="false">
+            <span class="led" aria-hidden="true"></span><span class="charge-num">5</span>
+          </button>
+          <button type="button" class="charge-btn chamfer-2" data-carga="6" aria-pressed="false">
+            <span class="led" aria-hidden="true"></span><span class="charge-num">6</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ---- DIRECTION ---- -->
+      <div class="field-group">
+        <div class="nameplate nameplate-small">
+          <span class="crosshair" aria-hidden="true">&#10011;</span> AZIMUTH / TRAVERSE
+        </div>
+        <label class="field-label" for="direcao">DIRECTION <span class="unit">(0–360°)</span></label>
+        <div class="input-wrap dial-frame" id="wrap-direcao" data-field="direcao">
+          <svg class="dial-ring" viewBox="0 0 100 100" aria-hidden="true">
+            <circle cx="50" cy="50" r="46" class="dial-ring-track"></circle>
+            <g class="dial-ticks"></g>
+          </svg>
+          <input type="text" id="direcao" class="field-input" inputmode="none" readonly
+                 autocomplete="off" placeholder="0" aria-label="Direction in degrees">
+          <span class="input-cursor" aria-hidden="true"></span>
+          <span class="input-bracket bracket-l" aria-hidden="true">[</span>
+          <span class="input-bracket bracket-r" aria-hidden="true">]</span>
+        </div>
+      </div>
+
+      <!-- ---- INLINE ERROR ---- -->
+      <div id="form-error" class="form-error" role="alert" hidden>
+        <span class="form-error-icon" aria-hidden="true">&#9888;</span>
+        <span id="form-error-text"></span>
+      </div>
+
+      <!-- ---- ACTIONS ---- -->
+      <div class="action-row">
+        <button type="button" id="btn-limpar" class="btn btn-destructive chamfer-2">
+          <span class="led led-static" aria-hidden="true"></span> CLEAR
+        </button>
+        <button type="button" id="btn-calcular" class="btn btn-primary chamfer-4">
+          <span class="led led-static" aria-hidden="true"></span> CALCULATE
+        </button>
+      </div>
+
+      <!-- ---- NUMERIC KEYPAD ---- -->
+      <div class="keypad" id="keypad" aria-label="Numeric keypad">
+        <button type="button" class="key-btn chamfer-2" data-key="7">7</button>
+        <button type="button" class="key-btn chamfer-2" data-key="8">8</button>
+        <button type="button" class="key-btn chamfer-2" data-key="9">9</button>
+        <button type="button" class="key-btn chamfer-2" data-key="4">4</button>
+        <button type="button" class="key-btn chamfer-2" data-key="5">5</button>
+        <button type="button" class="key-btn chamfer-2" data-key="6">6</button>
+        <button type="button" class="key-btn chamfer-2" data-key="1">1</button>
+        <button type="button" class="key-btn chamfer-2" data-key="2">2</button>
+        <button type="button" class="key-btn chamfer-2" data-key="3">3</button>
+        <button type="button" class="key-btn chamfer-2" data-key=".">.</button>
+        <button type="button" class="key-btn chamfer-2" data-key="0">0</button>
+        <button type="button" class="key-btn key-backspace chamfer-2" data-key="back" aria-label="Delete digit">&#9003;</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- ===================== DIVIDER (ballistic arc) ===================== -->
+  <div class="divider" aria-hidden="true">
+    <svg viewBox="0 0 60 400" preserveAspectRatio="none" class="ballistic-arc">
+      <path d="M 30 0 C -10 100, -10 300, 30 400" />
+    </svg>
+  </div>
+
+  <!-- ===================== RIGHT HALF ===================== -->
+  <section class="panel panel-right" aria-label="Log of calculated shots">
+    <span class="rivet rivet-tl" aria-hidden="true"></span>
+    <span class="rivet rivet-tr" aria-hidden="true"></span>
+    <span class="rivet rivet-bl" aria-hidden="true"></span>
+    <span class="rivet rivet-br" aria-hidden="true"></span>
+
+    <header class="console-header">
+      <div class="nameplate nameplate-main chamfer-2">
+        <span class="crosshair" aria-hidden="true">&#10011;</span>
+        FIRE LOG
+      </div>
+      <p class="console-sub">HISTORY OF CALCULATED FIRE SOLUTIONS</p>
+    </header>
+
+    <div class="hero-readout dial-frame">
+      <svg class="dial-ring dial-ring-hero" viewBox="0 0 100 100" aria-hidden="true">
+        <circle cx="50" cy="50" r="46" class="dial-ring-track"></circle>
+        <g class="dial-ticks"></g>
+      </svg>
+      <div class="hero-readout-inner">
+        <span class="hero-label">NEXT ELEVATION</span>
+        <span class="hero-value" id="hero-elevacao">--.-<span class="unit">°</span></span>
+        <span class="hero-rotation">
+          <span class="hero-rotation-label">ROT</span>
+          <span class="hero-rotation-value" id="hero-direcao">--<span class="unit">°</span></span>
+        </span>
+      </div>
+    </div>
+
+    <div class="tiro-lists" id="tiro-lists" aria-live="polite">
+      <div class="tiro-list-box tiro-list-box--active">
+        <ul class="tiro-list" id="tiro-list-active">
+          <!-- active rows inserted via JS -->
+        </ul>
+        <p class="tiro-list-empty" id="tiro-list-empty">NO ACTIVE SHOTS LOGGED.</p>
+      </div>
+      <div class="fired-section" id="fired-section" hidden>
+        <p class="fired-divider">FIRED</p>
+        <div class="tiro-list-box tiro-list-box--fired">
+          <ul class="tiro-list" id="tiro-list-fired">
+            <!-- fired rows inserted via JS -->
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- ===================== HELP / TUTORIAL MODAL ===================== -->
+<div class="help-modal" id="help-modal" role="dialog" aria-modal="true" aria-labelledby="help-modal-title" hidden>
+  <div class="help-modal-backdrop" id="help-modal-backdrop" aria-hidden="true"></div>
+  <div class="help-modal-panel chamfer-4">
+    <header class="help-modal-header">
+      <div class="nameplate nameplate-main chamfer-2">
+        <span class="crosshair" aria-hidden="true">&#10011;</span>
+        FIELD MANUAL
+      </div>
+      <button type="button" class="help-modal-close" id="help-modal-close" aria-label="Close tutorial">&#10005;</button>
+    </header>
+
+    <div class="help-modal-body">
+      <p class="help-intro">Quick reference for the Iron Nest Ballistics console.</p>
+
+      <section class="help-section">
+        <h3 class="help-section-title">
+          <span class="help-icon help-icon--accent" aria-hidden="true">&#10011;</span>
+          Calculating a shot
+        </h3>
+        <ol class="help-steps">
+          <li>
+            <span class="help-step-icon help-icon--mono" aria-hidden="true">123</span>
+            <span class="help-step-text">
+              Tap <strong>DISTANCE</strong> to activate it, then type the range in km on the keypad.
+              You don't need the <span class="help-key-sample" aria-hidden="true">.</span> key for whole
+              numbers — type <code>1234</code> to get <code>12.34</code>, or type
+              <span class="help-key-sample" aria-hidden="true">.</span> yourself for something like
+              <code>7.5</code>.
+            </span>
+          </li>
+          <li>
+            <span class="help-step-icon help-icon--charge-sample" aria-hidden="true">3</span>
+            <span class="help-step-text">
+              <em>(Optional)</em> Tap a <strong>PROPELLANT CHARGE</strong> button (1–6). Skip it and the
+              console auto-picks the smallest charge that reaches your distance the moment you calculate.
+            </span>
+          </li>
+          <li>
+            <span class="help-step-icon help-icon--mono" aria-hidden="true">°</span>
+            <span class="help-step-text">
+              <em>(Optional)</em> Tap <strong>DIRECTION</strong> and type the bearing (0–360°, up to 1
+              decimal). Leave it empty if you don't need it.
+            </span>
+          </li>
+          <li>
+            <span class="help-step-icon help-icon--calc-sample" aria-hidden="true">CALC</span>
+            <span class="help-step-text">
+              Tap <strong>CALCULATE</strong>. The shot is added to the <strong>FIRE LOG</strong>, and
+              DISTANCE/DIRECTION clear automatically — the charge stays selected for your next shot.
+            </span>
+          </li>
+          <li>
+            <span class="help-step-icon help-icon--danger" aria-hidden="true">&#9888;</span>
+            <span class="help-step-text">
+              If the input is invalid (e.g. distance beyond the charge's range), an error appears above
+              the buttons and nothing clears, so you can fix it and try again.
+            </span>
+          </li>
+        </ol>
+      </section>
+
+      <section class="help-section">
+        <h3 class="help-section-title">
+          <span class="help-icon help-icon--accent" aria-hidden="true">&darr;</span>
+          How the lists are ordered
+        </h3>
+        <ul class="help-bullets">
+          <li>
+            <span class="help-step-text">
+              New shots are added to the <strong>bottom</strong> of the active list — it reads top to
+              bottom in the order you calculated them, like a queue.
+            </span>
+          </li>
+          <li>
+            <span class="help-step-text">
+              The big <strong>NEXT ELEVATION</strong> readout always shows the <strong>topmost</strong>
+              card of the active list — the next shot in line — together with its rotation. It isn't
+              always the last one you calculated.
+            </span>
+          </li>
+          <li>
+            <span class="help-step-text">
+              Marking a shot fired moves it out of the active list into its own <strong>FIRED</strong>
+              section, which always sits below the active list, in its own scroll box.
+            </span>
+          </li>
+        </ul>
+      </section>
+
+      <section class="help-section">
+        <h3 class="help-section-title">
+          <span class="help-icon help-icon--success" aria-hidden="true">&#10003;</span>
+          Marking fired &amp; deleting
+        </h3>
+        <ul class="help-bullets">
+          <li>
+            <span class="help-step-icon help-icon--confirm-sample" aria-hidden="true">&#10003;</span>
+            <span class="help-step-text">
+              Tap the check to mark a shot as <strong>fired</strong> — it turns grey and drops into the
+              FIRED section. Tap it again on a fired card to undo — it returns to the active list. This
+              button never disappears, so you can always toggle it back.
+            </span>
+          </li>
+          <li>
+            <span class="help-step-icon help-icon--remove-sample" aria-hidden="true">&#10005;</span>
+            <span class="help-step-text">
+              Tap the cross to <strong>permanently delete</strong> that entry from the log. This can't be
+              undone.
+            </span>
+          </li>
+        </ul>
+      </section>
+
+      <section class="help-section">
+        <h3 class="help-section-title">
+          <span class="help-icon help-icon--muted" aria-hidden="true">&#9881;</span>
+          Other controls
+        </h3>
+        <ul class="help-bullets">
+          <li><span class="help-step-text"><strong>CLEAR</strong> resets DISTANCE and DIRECTION only —
+            it never touches the charge selection or the log.</span></li>
+          <li><span class="help-step-text">Tap the already-selected charge again to deselect it and
+            return to automatic mode.</span></li>
+          <li><span class="help-step-text"><strong>FDC</strong> / <strong>IRONCLAD</strong> at the top
+            switches the console's look — your shots and settings are identical in both.</span></li>
+          <li><span class="help-step-text">Everything is saved on this device automatically; nothing is
+            sent anywhere else.</span></li>
+        </ul>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

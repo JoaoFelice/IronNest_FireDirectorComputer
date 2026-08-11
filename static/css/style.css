@@ -1,0 +1,1770 @@
+/* =====================================================================
+   IRON NEST FDC — Fire Director
+   Digital Fire Direction Center terminal mounted on an armored chassis.
+   ===================================================================== */
+
+:root {
+  --background: #0A0F0C;
+  --panel-bg: #141B16;
+  --panel-bg-raised: #182019;
+  --accent: #FFB300;
+  --accent-secondary: #C97A2B;
+  --text-primary: #EDEFE9;
+  --text-muted: #87998B;
+  --border: #5A6E5A;
+  --danger: #FF3B30;
+  --success: #4ADE80;
+  --dark-text: #0A0F0C;
+
+  --font-heading: 'Rajdhani', 'Big Shoulders Stencil', 'Arial Narrow', sans-serif;
+  --font-label: 'Oswald', 'Big Shoulders Stencil', 'Arial Narrow', sans-serif;
+  --font-mono: 'JetBrains Mono', 'IBM Plex Mono', 'Share Tech Mono', ui-monospace, monospace;
+
+  --chamfer: 8px;
+  --tap-min: 56px;
+
+  --scanline-color: #fff;
+  --rivet-highlight: #9aa89a;
+  --rivet-shadow: rgba(0, 0, 0, 0.4);
+  --led-off: #3a453d;
+}
+
+/* ---------------------------------------------------------------------
+   Reset & base
+   --------------------------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overscroll-behavior: none;
+}
+
+body {
+  background: var(--background);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+}
+
+input, button {
+  font-family: inherit;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+button {
+  touch-action: manipulation;
+  cursor: pointer;
+}
+
+ul { list-style: none; margin: 0; padding: 0; }
+p { margin: 0; }
+
+::selection { background: var(--accent); color: var(--dark-text); }
+
+/* ---------------------------------------------------------------------
+   Scanline / phosphor texture — single global layer
+   --------------------------------------------------------------------- */
+.scanline-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 999;
+  opacity: 0.03;
+  mix-blend-mode: overlay;
+  background-image:
+    repeating-linear-gradient(0deg, var(--scanline-color) 0px, var(--scanline-color) 1px, transparent 1px, transparent 3px);
+  animation: scanline-drift 9s linear infinite;
+}
+
+@keyframes scanline-drift {
+  0%   { background-position: 0 0; }
+  100% { background-position: 0 120px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scanline-overlay { animation: none; opacity: 0.02; }
+}
+
+/* ---------------------------------------------------------------------
+   Layout shell
+   --------------------------------------------------------------------- */
+.theme-bar {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 8px 14px;
+  background: var(--panel-bg-raised);
+  border-bottom: 1.5px solid var(--border);
+}
+
+.theme-bar-label {
+  font-family: var(--font-label);
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.theme-toggle {
+  display: inline-flex;
+  border: 1.5px solid var(--border);
+}
+
+.theme-btn {
+  min-height: 44px;
+  min-width: 84px;
+  padding: 6px 16px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.theme-btn + .theme-btn { border-left: 1.5px solid var(--border); }
+
+.theme-btn:hover { color: var(--text-primary); }
+
+.theme-btn:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: -3px;
+}
+
+.theme-btn.is-active {
+  background: var(--accent);
+  color: var(--dark-text);
+}
+
+.help-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 6px 14px;
+  border: 1.5px solid var(--border);
+  background: var(--panel-bg);
+  color: var(--text-muted);
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: border-color 0.12s ease, color 0.12s ease;
+}
+
+.help-btn:hover { border-color: var(--accent); color: var(--text-primary); }
+
+.help-btn:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.help-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.72rem;
+}
+
+/* ---------------------------------------------------------------------
+   Help / tutorial modal
+   --------------------------------------------------------------------- */
+.help-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.help-modal[hidden] { display: none; }
+
+.help-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.68);
+}
+
+.help-modal-panel {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 640px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel-bg);
+  border: 1.5px solid var(--border);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+}
+
+.help-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 14px 0;
+  flex: 0 0 auto;
+}
+
+.help-modal-header .nameplate-main { flex: 1 1 auto; }
+
+.help-modal-close {
+  flex-shrink: 0;
+  width: var(--tap-min);
+  height: var(--tap-min);
+  min-height: var(--tap-min);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1.5px solid var(--border);
+  color: var(--text-muted);
+  font-size: 1rem;
+  transition: border-color 0.12s ease, color 0.12s ease, background 0.12s ease;
+}
+
+.help-modal-close:hover { border-color: var(--danger); color: var(--danger); }
+
+.help-modal-close:active {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--dark-text);
+}
+
+.help-modal-close:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.help-modal-body {
+  overflow-y: auto;
+  padding: 14px 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.help-intro {
+  font-family: var(--font-label);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  padding-bottom: 10px;
+  border-bottom: 1px dashed var(--border);
+}
+
+.help-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.help-section-title {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 0.98rem;
+  color: var(--text-primary);
+}
+
+.help-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.help-icon--accent { color: var(--accent); }
+.help-icon--success { color: var(--success); }
+.help-icon--danger { color: var(--danger); }
+.help-icon--muted { color: var(--text-muted); }
+
+.help-steps,
+.help-bullets {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  list-style: none;
+}
+
+.help-steps li,
+.help-bullets li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-family: var(--font-label);
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+.help-bullets li::before {
+  flex-shrink: 0;
+  content: "—";
+  color: var(--accent-secondary);
+}
+
+/* The icon (or the "—" bullet) and the prose are the only two flex items in
+   the row — everything readable lives inside this single wrapper so it wraps
+   as normal text instead of each word/chip becoming its own flex column. */
+.help-step-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.help-step-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 28px;
+  padding: 0 6px;
+  margin-top: 1px;
+  border: 1.5px solid var(--border);
+  background: var(--panel-bg-raised);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.help-icon--danger.help-step-icon { border-color: var(--danger); color: var(--danger); }
+
+.help-icon--charge-sample {
+  border-radius: 50%;
+  min-width: 28px;
+  height: 28px;
+  color: var(--dark-text);
+  background: var(--accent);
+  border-color: var(--accent);
+  font-family: var(--font-heading);
+  font-size: 0.85rem;
+}
+
+.help-icon--calc-sample {
+  color: var(--dark-text);
+  background: var(--accent);
+  border-color: var(--accent-secondary);
+  font-family: var(--font-heading);
+  letter-spacing: 0.05em;
+}
+
+.help-icon--confirm-sample {
+  border-radius: 50%;
+  min-width: 28px;
+  height: 28px;
+  color: var(--dark-text);
+  background: var(--success);
+  border-color: var(--success);
+  font-size: 0.95rem;
+}
+
+.help-icon--remove-sample {
+  border-radius: 50%;
+  min-width: 28px;
+  height: 28px;
+  color: var(--dark-text);
+  background: var(--danger);
+  border-color: var(--danger);
+  font-size: 0.85rem;
+}
+
+.help-key-sample {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid var(--border);
+  background: var(--panel-bg-raised);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+
+.help-modal-body code {
+  font-family: var(--font-mono);
+  background: var(--panel-bg-raised);
+  padding: 1px 5px;
+  border: 1px solid var(--border);
+  color: var(--accent);
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: row;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100vw;
+  gap: 0;
+}
+
+.panel {
+  position: relative;
+  flex: 1 1 50%;
+  min-width: 0;
+  background: var(--panel-bg);
+  padding: 14px 18px 18px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.panel-left {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.panel-right {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Rivets in the four outer corners of each main panel */
+.rivet {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, var(--rivet-highlight), var(--border) 70%);
+  box-shadow: 0 0 0 1px var(--rivet-shadow);
+  z-index: 2;
+}
+.rivet-tl { top: 8px; left: 8px; }
+.rivet-tr { top: 8px; right: 8px; }
+.rivet-bl { bottom: 8px; left: 8px; }
+.rivet-br { bottom: 8px; right: 8px; }
+
+/* ---------------------------------------------------------------------
+   Chamfered corners (structural motif)
+   --------------------------------------------------------------------- */
+.chamfer-2 {
+  clip-path: polygon(
+    var(--chamfer) 0, 100% 0,
+    100% calc(100% - var(--chamfer)), calc(100% - var(--chamfer)) 100%,
+    0 100%, 0 var(--chamfer)
+  );
+}
+
+.chamfer-4 {
+  clip-path: polygon(
+    var(--chamfer) 0, calc(100% - var(--chamfer)) 0,
+    100% var(--chamfer), 100% calc(100% - var(--chamfer)),
+    calc(100% - var(--chamfer)) 100%, var(--chamfer) 100%,
+    0 calc(100% - var(--chamfer)), 0 var(--chamfer)
+  );
+}
+
+/* ---------------------------------------------------------------------
+   Nameplates / section headers
+   --------------------------------------------------------------------- */
+.console-header { margin-bottom: 2px; }
+
+.nameplate {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nameplate-main {
+  font-size: 1.5rem;
+  background: var(--panel-bg-raised);
+  border: 1.5px solid var(--border);
+  padding: 8px 14px;
+}
+
+.console-sub {
+  font-family: var(--font-label);
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  letter-spacing: 0.12em;
+  margin-top: 4px;
+  padding-left: 2px;
+}
+
+.nameplate-small {
+  font-size: 0.78rem;
+  color: var(--accent-secondary);
+  letter-spacing: 0.1em;
+  margin-bottom: 4px;
+}
+
+.crosshair {
+  color: var(--accent);
+  font-size: 0.9em;
+  line-height: 1;
+}
+
+/* ---------------------------------------------------------------------
+   Field groups / inputs
+   --------------------------------------------------------------------- */
+.field-group { margin-bottom: 2px; }
+
+.field-label {
+  display: block;
+  font-family: var(--font-label);
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.field-label .unit {
+  color: var(--text-muted);
+  font-weight: 500;
+  opacity: 0.85;
+}
+
+.input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: var(--panel-bg-raised);
+  border: 1.5px solid var(--border);
+  min-height: var(--tap-min);
+  padding: 6px 16px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.input-bracket {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 1.4rem;
+  color: var(--border);
+  transition: color 0.15s ease, text-shadow 0.15s ease;
+}
+
+.field-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.6rem;
+  text-align: center;
+  letter-spacing: 0.04em;
+  caret-color: transparent;
+}
+
+.field-input::placeholder { color: var(--text-muted); opacity: 0.5; }
+
+.input-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1.5rem;
+  background: var(--accent);
+  opacity: 0;
+  margin-left: 1px;
+}
+
+/* Active field state — [ bracket ] target-lock styling + blinking cursor */
+.input-wrap.is-active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.input-wrap.is-active .input-bracket {
+  color: var(--accent);
+  text-shadow: 0 0 6px rgba(255, 179, 0, 0.7);
+}
+.input-wrap.is-active .field-input {
+  text-shadow: 0 0 4px rgba(255, 179, 0, 0.5);
+}
+.input-wrap.is-active .input-cursor {
+  opacity: 1;
+  animation: cursor-blink 1s steps(1) infinite;
+}
+
+@keyframes cursor-blink {
+  0%, 49%   { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .input-wrap.is-active .input-cursor { animation: none; opacity: 1; }
+}
+
+/* Out-of-range / error hint on a field */
+.input-wrap.is-invalid {
+  border-color: var(--danger);
+  background-image: repeating-linear-gradient(
+    135deg, rgba(255,59,48,0.16) 0 6px, rgba(255,59,48,0.04) 6px 12px
+  );
+}
+
+/* Circular graduated dial frame — legacy analog instrument motif,
+   reserved for the azimuth field and the elevation hero readout */
+.dial-frame { overflow: visible; }
+
+.dial-ring {
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 38px;
+  height: 38px;
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+.dial-ring-track {
+  fill: none;
+  stroke: var(--accent-secondary);
+  stroke-width: 1.4;
+  opacity: 0.55;
+}
+
+.dial-ticks line {
+  stroke: var(--accent-secondary);
+  stroke-width: 1.2;
+  opacity: 0.7;
+}
+
+/* ---------------------------------------------------------------------
+   Charge selector
+   --------------------------------------------------------------------- */
+.charge-selector {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+}
+
+.charge-btn {
+  position: relative;
+  min-height: var(--tap-min);
+  background: var(--panel-bg-raised);
+  border: 1.5px solid var(--border);
+  color: var(--text-primary);
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+
+.charge-btn:hover { border-color: var(--accent); filter: drop-shadow(0 0 4px rgba(255,179,0,0.4)); }
+
+.charge-btn:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.charge-btn.is-selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--dark-text);
+  text-shadow: none;
+}
+
+.charge-btn .led {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+}
+
+.charge-btn.is-selected .led { background: var(--dark-text); box-shadow: 0 0 4px 1px rgba(10,15,12,0.6); }
+
+/* ---------------------------------------------------------------------
+   LED status indicators
+   --------------------------------------------------------------------- */
+.led {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--led-off);
+  flex-shrink: 0;
+}
+
+.led-static { position: static; margin-right: 2px; }
+
+.btn.is-armed .led,
+.btn:active .led { background: var(--accent); box-shadow: 0 0 5px 1px rgba(255,179,0,0.8); }
+
+/* ---------------------------------------------------------------------
+   Form error banner
+   --------------------------------------------------------------------- */
+.form-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1.5px solid var(--danger);
+  background: rgba(255, 59, 48, 0.08);
+  color: var(--danger);
+  font-family: var(--font-label);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  padding: 10px 12px;
+  background-image: repeating-linear-gradient(
+    135deg, rgba(255,59,48,0.12) 0 6px, transparent 6px 12px
+  );
+}
+
+.form-error[hidden] { display: none; }
+
+.form-error-icon { font-size: 1rem; }
+
+/* ---------------------------------------------------------------------
+   Buttons — shared
+   --------------------------------------------------------------------- */
+.btn {
+  min-height: var(--tap-min);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1.5px solid var(--border);
+  background: var(--panel-bg-raised);
+  color: var(--text-primary);
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  transition: background 0.12s ease, border-color 0.12s ease, filter 0.12s ease, color 0.12s ease;
+}
+
+.btn:hover { border-color: var(--accent); filter: drop-shadow(0 0 5px rgba(255,179,0,0.35)); }
+
+.btn:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.btn:disabled {
+  opacity: 0.3;
+  border-color: transparent;
+  color: var(--text-muted);
+  filter: none;
+  pointer-events: none;
+}
+
+.action-row {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.btn-primary {
+  min-height: 60px;
+  background: var(--panel-bg-raised);
+  border-color: var(--accent-secondary);
+  color: var(--text-primary);
+  font-size: 1.05rem;
+}
+.btn-primary:hover { filter: drop-shadow(0 0 7px rgba(255,179,0,0.5)); }
+.btn-primary.is-pressed,
+.btn-primary:active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--dark-text);
+}
+
+.btn-destructive {
+  border-color: var(--border);
+  background-image: repeating-linear-gradient(
+    135deg, rgba(255,59,48,0.10) 0 7px, transparent 7px 14px
+  );
+}
+.btn-destructive:hover { border-color: var(--danger); filter: drop-shadow(0 0 5px rgba(255,59,48,0.45)); }
+.btn-destructive:active {
+  background-color: var(--danger);
+  background-image: repeating-linear-gradient(
+    135deg, rgba(10,15,12,0.18) 0 7px, transparent 7px 14px
+  );
+  border-color: var(--danger);
+  color: var(--dark-text);
+}
+
+/* ---------------------------------------------------------------------
+   Numeric keypad
+   --------------------------------------------------------------------- */
+.keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+  position: relative;
+}
+
+/* ruler / compass tick marks along the keypad's top edge */
+.keypad::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background-image: repeating-linear-gradient(
+    90deg, var(--border) 0 1px, transparent 1px calc(100% / 24)
+  );
+  opacity: 0.6;
+}
+
+.key-btn {
+  min-height: var(--tap-min);
+  background: var(--panel-bg-raised);
+  border: 1.5px solid var(--border);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 1.3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.1s ease, border-color 0.1s ease, color 0.1s ease;
+}
+
+.key-btn:hover { border-color: var(--accent); }
+
+.key-btn:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.key-btn:active,
+.key-btn.is-pressed {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--dark-text);
+}
+
+.key-backspace {
+  background-image: repeating-linear-gradient(
+    135deg, rgba(255,59,48,0.10) 0 7px, transparent 7px 14px
+  );
+}
+.key-backspace:active,
+.key-backspace.is-pressed {
+  background: var(--danger);
+  background-image: none;
+  border-color: var(--danger);
+  color: var(--dark-text);
+}
+
+/* ---------------------------------------------------------------------
+   Divider — ballistic trajectory arc
+   --------------------------------------------------------------------- */
+.divider {
+  flex: 0 0 auto;
+  width: 40px;
+  background: var(--background);
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+}
+
+.ballistic-arc {
+  width: 100%;
+  height: 100%;
+}
+
+.ballistic-arc path {
+  fill: none;
+  stroke: var(--accent-secondary);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 5;
+  opacity: 0.65;
+}
+
+/* ---------------------------------------------------------------------
+   Hero readout (elevation) — analog instrument styling
+   --------------------------------------------------------------------- */
+.hero-readout {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel-bg-raised);
+  border: 1.5px solid var(--border);
+  padding: 16px;
+  min-height: 96px;
+}
+
+.dial-ring-hero {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 64px;
+  height: 64px;
+  opacity: 0.85;
+}
+
+.hero-readout-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.hero-label {
+  font-family: var(--font-label);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.hero-value {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-size: 2.4rem;
+  color: var(--accent);
+  text-shadow: 0 0 8px rgba(255, 179, 0, 0.5);
+}
+
+.hero-value .unit { font-size: 1.3rem; opacity: 0.85; }
+
+.hero-rotation {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  margin-top: 2px;
+}
+
+.hero-rotation-label {
+  font-family: var(--font-label);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.hero-rotation-value {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.05rem;
+  color: var(--accent-secondary);
+}
+
+.hero-rotation-value .unit { font-size: 0.9rem; opacity: 0.85; }
+
+.hero-readout.has-value .hero-value { color: var(--accent); }
+
+/* Success flash — brief confirmation glow the instant a shot is registered */
+.hero-readout.is-confirmed .hero-value {
+  animation: hero-confirm-flash 0.7s ease-out;
+}
+
+@keyframes hero-confirm-flash {
+  0%   { color: var(--success); text-shadow: 0 0 10px rgba(74, 222, 128, 0.75); }
+  100% { color: var(--accent); text-shadow: 0 0 8px rgba(255, 179, 0, 0.5); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-readout.is-confirmed .hero-value { animation: none; color: var(--success); }
+}
+
+/* ---------------------------------------------------------------------
+   Results list
+   --------------------------------------------------------------------- */
+/* Layout wrapper only — does NOT scroll itself. Each box below (active,
+   fired) owns its own independent scrollbar, so a long fired log never
+   pushes the active list around and vice versa. */
+.tiro-lists {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+.tiro-list-box {
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.tiro-list-box--active {
+  flex: 1 1 auto;
+  min-height: 260px;
+}
+
+.tiro-list-box--fired {
+  max-height: 130px;
+}
+
+.tiro-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tiro-list-empty {
+  font-family: var(--font-label);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 18px 8px;
+  border: 1px dashed var(--border);
+  letter-spacing: 0.05em;
+}
+
+.tiro-list-empty[hidden] { display: none; }
+
+/* Fired section — always rendered below the active list, in its own box */
+.fired-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.fired-section[hidden] { display: none; }
+
+.fired-divider {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+  font-family: var(--font-label);
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.tiro-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--panel-bg-raised);
+  border: 1.5px solid var(--border);
+  border-left: 3px solid var(--accent-secondary);
+  padding: 10px 12px;
+  animation: row-in 0.18s ease-out;
+  transition: opacity 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+/* Fired rows — greyed out, sit below all active rows */
+.tiro-row.is-fired {
+  opacity: 0.72;
+  background: var(--panel-bg);
+  border-left-color: var(--text-muted);
+}
+
+.tiro-row.is-fired .tiro-distancia strong,
+.tiro-row.is-fired .tiro-elevacao strong,
+.tiro-row.is-fired .tiro-carga strong,
+.tiro-row.is-fired .tiro-direcao strong {
+  color: var(--text-muted);
+}
+
+@keyframes row-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tiro-row { animation: none; }
+}
+
+.tiro-data {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.92rem;
+}
+
+.tiro-data .tiro-field-label {
+  color: var(--text-muted);
+  font-family: var(--font-label);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  margin-right: 4px;
+  text-transform: uppercase;
+}
+
+.tiro-elevacao strong { color: var(--accent); font-weight: 700; }
+.tiro-distancia strong,
+.tiro-carga strong,
+.tiro-direcao strong { color: var(--text-primary); font-weight: 600; }
+
+.tiro-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.btn-remove,
+.btn-confirm {
+  flex-shrink: 0;
+  width: var(--tap-min);
+  height: var(--tap-min);
+  min-height: var(--tap-min);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1.5px solid var(--border);
+  color: var(--text-muted);
+  font-size: 1rem;
+  line-height: 1;
+  transition: border-color 0.12s ease, color 0.12s ease, background 0.12s ease;
+}
+
+.btn-remove:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.btn-remove:active {
+  background: var(--danger);
+  color: var(--dark-text);
+  border-color: var(--danger);
+}
+
+.btn-remove:focus-visible,
+.btn-confirm:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Confirm-fired toggle — stays visible in both states so a fired shot can be un-marked */
+.btn-confirm {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.btn-confirm:hover {
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.btn-confirm:active {
+  background: var(--success);
+  color: var(--dark-text);
+  border-color: var(--success);
+}
+
+.btn-confirm.is-fired {
+  background: var(--text-muted);
+  border-color: var(--text-muted);
+  color: var(--dark-text);
+}
+
+.btn-confirm.is-fired:hover {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--dark-text);
+}
+
+/* ---------------------------------------------------------------------
+   Scrollbars (webkit) — keep the console aesthetic
+   --------------------------------------------------------------------- */
+.panel::-webkit-scrollbar,
+.tiro-list-box::-webkit-scrollbar { width: 8px; }
+.panel::-webkit-scrollbar-track,
+.tiro-list-box::-webkit-scrollbar-track { background: var(--background); }
+.panel::-webkit-scrollbar-thumb,
+.tiro-list-box::-webkit-scrollbar-thumb { background: var(--border); }
+
+/* ---------------------------------------------------------------------
+   Responsive — stack into a column on narrow / portrait screens
+   --------------------------------------------------------------------- */
+@media (max-width: 860px), (orientation: portrait) {
+  html, body { overflow-y: auto; overflow-x: hidden; }
+
+  .app-shell {
+    flex-direction: column;
+    flex: 1 1 auto;
+    height: auto;
+    min-height: auto;
+  }
+
+  .panel {
+    flex: none;
+    overflow: visible;
+  }
+
+  .divider {
+    width: 100%;
+    height: 28px;
+  }
+
+  .ballistic-arc {
+    transform: rotate(90deg) scaleX(-1);
+    width: 28px;
+    height: 100%;
+    margin: 0 auto;
+  }
+
+  /* Active list flows with the page instead of scrolling in its own small
+     box — easier to scroll a tall vertical screen with one motion. The
+     fired box (.tiro-list-box--fired, above) keeps its own fixed-height
+     scroll area in every layout. */
+  .tiro-list-box--active {
+    flex: none;
+    overflow: visible;
+    min-height: 0;
+  }
+}
+
+@media (max-width: 420px) {
+  .charge-selector { grid-template-columns: repeat(3, 1fr); }
+  .hero-value { font-size: 1.9rem; }
+}
+
+/* =====================================================================
+   IRONCLAD TRENCH BATTERY — "Bateria Encouraçada"
+   Second visual theme, activated via html[data-theme="ironclad"].
+   Every rule below is scoped under that attribute selector and restyles
+   the SAME classes used by the FDC theme above — no markup is duplicated.
+   Toggled instantly by static/js/app.js (data-theme attribute swap) and
+   persisted separately from shot data under localStorage key
+   "iron_nest_theme". The FDC theme (no attribute, or data-theme="fdc")
+   is completely untouched by anything in this block.
+   ===================================================================== */
+html[data-theme="ironclad"] {
+  --background: #15110d;
+  --panel-bg: #221d17;
+  --panel-bg-raised: #322a21;
+  --accent: #ff7a1f;
+  --accent-secondary: #b8863f;
+  --text-primary: #ecdfc0;
+  --text-muted: #a3947a;
+  --border: #7c5f36;
+  --danger: #b3312c;
+  --success: #8fce8f;
+  --dark-text: #241705;
+
+  --font-heading: 'Big Shoulders Stencil', 'Rajdhani', 'Arial Narrow', sans-serif;
+  --font-label: 'Oswald', 'Big Shoulders Stencil', 'Arial Narrow', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+
+  --chamfer: 3px;
+  --scanline-color: #ff7a1f;
+  --rivet-highlight: #e0b364;
+  --rivet-shadow: rgba(0, 0, 0, 0.75);
+  --led-off: #4a3620;
+
+  /* Ironclad-only extra tokens (not part of the shared FDC palette) */
+  --iron-steel-lt: #453a2d;
+  --iron-steel-dk: #1c1712;
+  --iron-ember-deep: #c8500f;
+  --iron-glass: #0c0e0c;
+  --iron-noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+html[data-theme="ironclad"] body {
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(255, 122, 31, 0.06), transparent 55%),
+    radial-gradient(ellipse at 50% 100%, rgba(0, 0, 0, 0.6), transparent 60%),
+    var(--background);
+}
+
+/* Scanline becomes a warm soot/ember drift instead of a cold phosphor glow */
+html[data-theme="ironclad"] .scanline-overlay {
+  opacity: 0.02;
+  mix-blend-mode: soft-light;
+}
+
+/* Chamfered corners (FDC's angular HUD motif) give way to riveted plates */
+html[data-theme="ironclad"] .chamfer-2,
+html[data-theme="ironclad"] .chamfer-4 {
+  clip-path: none;
+}
+
+/* ---------------------------------------------------------------------
+   Theme bar
+   --------------------------------------------------------------------- */
+html[data-theme="ironclad"] .theme-bar {
+  background: linear-gradient(180deg, var(--iron-steel-lt), var(--panel-bg-raised));
+  border-bottom: 3px solid var(--border);
+  box-shadow: inset 0 -3px 0 rgba(255, 122, 31, 0.25), inset 0 -6px 8px rgba(0, 0, 0, 0.4);
+}
+
+html[data-theme="ironclad"] .theme-toggle {
+  border: 2px solid var(--border);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+html[data-theme="ironclad"] .theme-btn {
+  background: linear-gradient(180deg, var(--iron-steel-lt), var(--panel-bg));
+}
+
+html[data-theme="ironclad"] .theme-btn + .theme-btn {
+  border-left: 2px solid var(--border);
+}
+
+html[data-theme="ironclad"] .theme-btn.is-active {
+  background: linear-gradient(180deg, #ffb066 0%, var(--accent) 40%, var(--iron-ember-deep) 100%);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.4), inset 0 -3px 6px rgba(60, 20, 0, 0.4);
+}
+
+html[data-theme="ironclad"] .help-btn {
+  background: linear-gradient(180deg, var(--iron-steel-lt), var(--panel-bg));
+  border: 2px solid var(--border);
+}
+
+/* ---------------------------------------------------------------------
+   Help / tutorial modal
+   --------------------------------------------------------------------- */
+html[data-theme="ironclad"] .help-modal-backdrop {
+  background: rgba(10, 6, 2, 0.78);
+}
+
+html[data-theme="ironclad"] .help-modal-panel {
+  background:
+    var(--iron-noise),
+    linear-gradient(168deg, var(--iron-steel-lt) 0%, var(--panel-bg) 55%, var(--background) 100%);
+  border: 3px solid var(--border);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7), 0 0 24px 2px rgba(255, 122, 31, 0.15);
+}
+
+html[data-theme="ironclad"] .help-step-icon {
+  border: 2px solid var(--border);
+}
+
+/* ---------------------------------------------------------------------
+   Panels & rivets
+   --------------------------------------------------------------------- */
+html[data-theme="ironclad"] .panel {
+  background:
+    var(--iron-noise),
+    repeating-linear-gradient(97deg, rgba(255, 255, 255, 0.02) 0px, rgba(255, 255, 255, 0.02) 1px, transparent 1px, transparent 4px),
+    radial-gradient(ellipse at 22% 0%, rgba(255, 255, 255, 0.035), transparent 55%),
+    linear-gradient(168deg, var(--iron-steel-lt) 0%, var(--panel-bg) 55%, var(--background) 100%);
+}
+
+html[data-theme="ironclad"] .rivet {
+  width: 10px;
+  height: 10px;
+  background: radial-gradient(circle at 35% 30%, var(--rivet-highlight), var(--border) 55%, #3a2a17 100%);
+  box-shadow: 0 1.5px 2px rgba(0, 0, 0, 0.7);
+}
+
+html[data-theme="ironclad"] .rivet::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  top: 47%;
+  height: 1.5px;
+  background: rgba(30, 20, 10, 0.7);
+  transform: rotate(28deg);
+}
+
+/* ---------------------------------------------------------------------
+   Nameplates — the main plate is bright brass, needs dark ink
+   --------------------------------------------------------------------- */
+html[data-theme="ironclad"] .nameplate-main {
+  background: linear-gradient(180deg, var(--rivet-highlight) 0%, var(--accent-secondary) 45%, #7c5f36 100%);
+  border: 2px solid #3a2a15;
+  color: var(--dark-text);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.4),
+    0 3px 8px rgba(0, 0, 0, 0.5);
+  text-shadow: 0 1px 0 rgba(255, 220, 160, 0.5), 0 -1px 1px rgba(0, 0, 0, 0.5);
+}
+
+html[data-theme="ironclad"] .nameplate-main .crosshair {
+  color: var(--dark-text);
+}
+
+/* ---------------------------------------------------------------------
+   Distance / direction gauge windows
+   --------------------------------------------------------------------- */
+html[data-theme="ironclad"] .input-wrap {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 30%),
+    radial-gradient(ellipse at 30% 0%, rgba(255, 255, 255, 0.06), transparent 60%),
+    var(--iron-glass);
+  border: 3px solid var(--border);
+  box-shadow: inset 0 3px 10px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(0, 0, 0, 0.6);
+}
+
+html[data-theme="ironclad"] .input-wrap.is-active {
+  border-color: var(--accent);
+  box-shadow:
+    inset 0 3px 10px rgba(0, 0, 0, 0.85),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.6),
+    0 0 0 3px rgba(255, 122, 31, 0.25),
+    0 0 18px 2px rgba(255, 122, 31, 0.55);
+}
+
+html[data-theme="ironclad"] .field-input {
+  text-shadow: 0 0 10px rgba(236, 223, 192, 0.15);
+}
+
+html[data-theme="ironclad"] .input-wrap.is-active .field-input {
+  text-shadow: 0 0 12px rgba(255, 122, 31, 0.65);
+}
+
+/* HUD target-lock brackets read as "digital" — hidden in favor of the
+   plain riveted gauge-glass look */
+html[data-theme="ironclad"] .input-bracket {
+  display: none;
+}
+
+html[data-theme="ironclad"] .dial-ring-track {
+  stroke: var(--border);
+  opacity: 0.7;
+}
+
+html[data-theme="ironclad"] .dial-ticks line {
+  stroke: var(--accent-secondary);
+  opacity: 0.85;
+}
+
+html[data-theme="ironclad"] .dial-ring-hero {
+  opacity: 1;
+  filter: drop-shadow(0 0 6px rgba(255, 122, 31, 0.35));
+}
+
+/* ---------------------------------------------------------------------
+   Charge selector — pressure valves instead of LED buttons
+   --------------------------------------------------------------------- */
+html[data-theme="ironclad"] .charge-selector {
+  gap: 10px;
+}
+
+html[data-theme="ironclad"] .charge-btn {
+  position: relative;
+  /* Capped instead of filling the grid column: at wide tablet widths a
+     6-column aspect-ratio circle would otherwise grow taller than the
+     original min-height button, pushing the panel past the viewport and
+     visibly clipping the row before the user scrolls. */
+  width: 100%;
+  max-width: 58px;
+  justify-self: center;
+  border-radius: 50%;
+  aspect-ratio: 1 / 1;
+  background:
+    repeating-conic-gradient(from 0deg, var(--iron-steel-lt) 0deg 10deg, var(--panel-bg) 10deg 50deg),
+    radial-gradient(circle, var(--panel-bg-raised) 40%, var(--panel-bg) 100%);
+  border: 3px solid var(--border);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.6), inset 0 2px 3px rgba(255, 255, 255, 0.08);
+}
+
+html[data-theme="ironclad"] .charge-btn::before {
+  content: "";
+  position: absolute;
+  inset: 22%;
+  z-index: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 25%, #4a3f31, #201a13 75%);
+  box-shadow: inset 0 0 0 2px var(--border), inset 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+
+html[data-theme="ironclad"] .charge-btn .charge-num {
+  position: relative;
+  z-index: 1;
+}
+
+html[data-theme="ironclad"] .charge-btn .led {
+  display: none;
+}
+
+html[data-theme="ironclad"] .charge-btn.is-selected {
+  background:
+    repeating-conic-gradient(from 0deg, var(--iron-steel-lt) 0deg 10deg, var(--panel-bg) 10deg 50deg),
+    radial-gradient(circle, var(--panel-bg-raised) 40%, var(--panel-bg) 100%);
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 3px rgba(255, 122, 31, 0.35),
+    0 0 16px 3px rgba(255, 122, 31, 0.7),
+    inset 0 0 0 3px var(--accent);
+}
+
+html[data-theme="ironclad"] .charge-btn.is-selected::before {
+  background: radial-gradient(circle at 35% 25%, #ffb066, var(--accent) 45%, var(--iron-ember-deep) 90%);
+  box-shadow: inset 0 0 0 2px #7a2f05, inset 0 -3px 6px rgba(0, 0, 0, 0.35);
+}
+
+/* ---------------------------------------------------------------------
+   Action buttons (CLEAR / CALCULATE)
+   --------------------------------------------------------------------- */
+html[data-theme="ironclad"] .btn {
+  border: 2px solid var(--border);
+  background: linear-gradient(180deg, var(--iron-steel-lt), var(--panel-bg));
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.06), inset 0 -3px 6px rgba(0, 0, 0, 0.5), 0 3px 6px rgba(0, 0, 0, 0.4);
+}
+
+html[data-theme="ironclad"] .btn:hover {
+  filter: drop-shadow(0 0 6px rgba(255, 122, 31, 0.4));
+}
+
+html[data-theme="ironclad"] .btn .led {
+  display: none;
+}
+
+html[data-theme="ironclad"] .btn-primary {
+  background: linear-gradient(180deg, #ffb066 0%, var(--accent) 40%, var(--iron-ember-deep) 100%);
+  border-color: #5c2405;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -4px 8px rgba(60, 20, 0, 0.45),
+    0 4px 10px rgba(0, 0, 0, 0.55),
+    0 0 22px 2px rgba(255, 122, 31, 0.45);
+}
+
+html[data-theme="ironclad"] .btn-primary.is-pressed,
+html[data-theme="ironclad"] .btn-primary:active {
+  background: linear-gradient(180deg, var(--iron-ember-deep), #8a3806);
+}
+
+html[data-theme="ironclad"] .btn-destructive {
+  background-image: none;
+}
+
+html[data-theme="ironclad"] .btn-destructive:hover {
+  border-color: var(--danger);
+}
+
+html[data-theme="ironclad"] .btn-destructive:active {
+  background: var(--danger);
+  background-image: none;
+  border-color: var(--danger);
+  color: var(--text-primary);
+}
+
+/* ---------------------------------------------------------------------
+   Numeric keypad
+   --------------------------------------------------------------------- */
+html[data-theme="ironclad"] .keypad {
+  border-top: 2px solid var(--border);
+}
+
+html[data-theme="ironclad"] .keypad::before {
+  display: none;
+}
+
+html[data-theme="ironclad"] .key-btn {
+  position: relative;
+  border: 2px solid var(--border);
+  background: linear-gradient(180deg, var(--iron-steel-lt) 0%, var(--panel-bg-raised) 55%, var(--panel-bg) 100%);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.10),
+    inset 0 -3px 5px rgba(0, 0, 0, 0.55),
+    0 3px 5px rgba(0, 0, 0, 0.45);
+}
+
+html[data-theme="ironclad"] .key-btn::before,
+html[data-theme="ironclad"] .key-btn::after {
+  content: "";
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  top: 5px;
+  background: radial-gradient(circle at 35% 30%, var(--rivet-highlight), var(--border));
+}
+
+html[data-theme="ironclad"] .key-btn::before { left: 5px; }
+html[data-theme="ironclad"] .key-btn::after { right: 5px; }
+
+html[data-theme="ironclad"] .key-btn:active,
+html[data-theme="ironclad"] .key-btn.is-pressed {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+html[data-theme="ironclad"] .key-backspace {
+  background-image: none;
+  color: var(--danger);
+}
+
+html[data-theme="ironclad"] .key-backspace:active,
+html[data-theme="ironclad"] .key-backspace.is-pressed {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--text-primary);
+}
+
+/* ---------------------------------------------------------------------
+   Divider — bulkhead seam with a riveted column instead of a HUD arc
+   --------------------------------------------------------------------- */
+html[data-theme="ironclad"] .divider {
+  background:
+    repeating-radial-gradient(circle at 50% 0px, var(--rivet-highlight) 0px, var(--rivet-highlight) 2px, transparent 3px, transparent 40px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.55), transparent 15%, transparent 85%, rgba(0, 0, 0, 0.55)),
+    linear-gradient(180deg, var(--iron-steel-lt), var(--panel-bg) 40%, var(--panel-bg) 60%, var(--iron-steel-lt));
+}
+
+html[data-theme="ironclad"] .ballistic-arc path {
+  display: none;
+}
+
+/* ---------------------------------------------------------------------
+   Hero readout — elevation as a boiler-pressure manometer
+   --------------------------------------------------------------------- */
+html[data-theme="ironclad"] .hero-readout {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 30%), var(--iron-glass);
+  border: 3px solid var(--border);
+  box-shadow: inset 0 3px 10px rgba(0, 0, 0, 0.85), 0 0 20px 2px rgba(255, 122, 31, 0.2);
+}
+
+html[data-theme="ironclad"] .hero-value {
+  text-shadow: 0 0 16px rgba(255, 122, 31, 0.6);
+}
+
+html[data-theme="ironclad"] .hero-rotation-value {
+  text-shadow: 0 0 8px rgba(184, 134, 63, 0.5);
+}
+
+/* ---------------------------------------------------------------------
+   Fire log rows
+   --------------------------------------------------------------------- */
+html[data-theme="ironclad"] .tiro-list-empty {
+  border: 2px dashed var(--border);
+}
+
+html[data-theme="ironclad"] .tiro-row {
+  background: linear-gradient(180deg, var(--iron-steel-lt), var(--panel-bg));
+  border: 2px solid var(--border);
+  border-left: 6px solid var(--accent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 3px 6px rgba(0, 0, 0, 0.4);
+}
+
+html[data-theme="ironclad"] .tiro-row.is-fired {
+  border-left-color: var(--text-muted);
+  background: linear-gradient(180deg, #2a241d, #1c1712);
+}
+
+html[data-theme="ironclad"] .fired-divider {
+  align-self: flex-start;
+  display: inline-flex;
+  width: auto;
+  margin: 8px 0 4px;
+  padding: 2px 12px;
+  border: 2px solid var(--danger);
+  color: var(--danger);
+  font-family: var(--font-heading);
+  font-size: 1rem;
+  letter-spacing: 0.18em;
+  transform: rotate(-2deg);
+  opacity: 0.85;
+  text-align: left;
+}
+
+html[data-theme="ironclad"] .btn-remove,
+html[data-theme="ironclad"] .btn-confirm {
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: radial-gradient(circle at 35% 30%, var(--iron-steel-lt), var(--panel-bg) 80%);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+html[data-theme="ironclad"] .btn-confirm {
+  color: var(--success);
+  border-color: #3f6b3f;
+}
+
+html[data-theme="ironclad"] .btn-confirm:hover {
+  border-color: var(--success);
+}
+
+html[data-theme="ironclad"] .btn-confirm:active {
+  background: var(--success);
+  border-color: var(--success);
+  color: var(--iron-steel-dk);
+}
+
+html[data-theme="ironclad"] .btn-confirm.is-fired {
+  background: radial-gradient(circle at 35% 30%, #6f9a6f, #3f6b3f 80%);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+  border-color: #2a4a2a;
+  color: var(--iron-steel-dk);
+}
+
+html[data-theme="ironclad"] .btn-confirm.is-fired:hover {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--text-primary);
+}
+
+html[data-theme="ironclad"] .btn-remove {
+  color: var(--danger);
+  border-color: #7a201d;
+}
+
+html[data-theme="ironclad"] .btn-remove:hover {
+  border-color: var(--danger);
+}
+
+html[data-theme="ironclad"] .btn-remove:active {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--text-primary);
+}
+
+/* ---------------------------------------------------------------------
+   Responsive — recolor the bulkhead divider for the stacked layout
+   --------------------------------------------------------------------- */
+@media (max-width: 860px), (orientation: portrait) {
+  html[data-theme="ironclad"] .divider {
+    background:
+      repeating-radial-gradient(circle at 0px 50%, var(--rivet-highlight) 0px, var(--rivet-highlight) 2px, transparent 3px, transparent 40px),
+      linear-gradient(180deg, rgba(0, 0, 0, 0.55), transparent 15%, transparent 85%, rgba(0, 0, 0, 0.55)),
+      linear-gradient(90deg, var(--iron-steel-lt), var(--panel-bg) 40%, var(--panel-bg) 60%, var(--iron-steel-lt));
+  }
+}

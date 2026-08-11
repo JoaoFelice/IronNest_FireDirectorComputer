@@ -1,0 +1,7 @@
+services:
+  iron-nest-ballistics:
+    build: .
+    container_name: iron-nest-ballistics
+    ports:
+      - "8080:5000"
+    restart: unless-stopped
