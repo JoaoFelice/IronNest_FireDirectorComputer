@@ -11,7 +11,7 @@ Not affiliated with or endorsed by the makers of Iron Nest. This is a fan-made c
 - **Fire log** — every calculated shot is queued, tracked, and can be marked fired or deleted.
 - **Two display themes** — FDC and Ironclad, switchable at runtime, saved locally.
 - **Built-in field manual** — an in-app help modal walks through the controls.
-- Everything runs client-side after load — shots and settings are stored in the browser, nothing is sent anywhere beyond the calculation request.
+- Everything runs client-side after load — shots and settings are stored in the browser, nothing is sent anywhere outside your network.
 
 ## How the math works
 
