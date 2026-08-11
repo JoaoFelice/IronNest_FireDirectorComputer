@@ -5,9 +5,24 @@ Linear formula (no real physics):
     elevationDeg = (distanceKm / maxRangeKm) * 60
 """
 
+import socket
+import sys
+from pathlib import Path
+
 from flask import Flask, jsonify, render_template, request
 
-app = Flask(__name__)
+
+def resource_path(relative_path):
+    """Resolve a bundled resource, whether running from source or a frozen exe."""
+    base_path = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
+    return str(base_path / relative_path)
+
+
+app = Flask(
+    __name__,
+    template_folder=resource_path("templates"),
+    static_folder=resource_path("static"),
+)
 
 CARGAS_MIN = 1
 CARGAS_MAX = 6
@@ -110,5 +125,45 @@ def api_calcular():
     return jsonify({"elevacao": round(elevacao_graus, 2)})
 
 
+def get_lan_ip():
+    """Best-effort guess at this machine's LAN IP (no packets are actually sent)."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("8.8.8.8", 80))
+        return s.getsockname()[0]
+    except OSError:
+        return "127.0.0.1"
+    finally:
+        s.close()
+
+
+def find_port(preferred=5000):
+    """Use the preferred port if free, otherwise let the OS assign one."""
+    for port in (preferred, 0):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            try:
+                s.bind(("0.0.0.0", port))
+                return s.getsockname()[1]
+            except OSError:
+                continue
+    raise RuntimeError("no free port available")
+
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    port = find_port()
+    lan_ip = get_lan_ip()
+
+    print("=" * 52)
+    print(" IRON NEST BALLISTICS -- Fire Director")
+    print("=" * 52)
+    print(f" On this PC:      http://127.0.0.1:{port}")
+    print(f" On your network: http://{lan_ip}:{port}")
+    print(" (share the network address with others on the same Wi-Fi/LAN)")
+    print(" Press Ctrl+C to stop.")
+    print("=" * 52)
+
+    try:
+        app.run(host="0.0.0.0", port=port)
+    except OSError as exc:
+        print(f"\nCould not start the server: {exc}")
+        input("Press Enter to exit...")

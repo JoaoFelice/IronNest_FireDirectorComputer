@@ -8,8 +8,14 @@ __pycache__/
 # Virtual environments
 venv/
 .venv/
+.buildenv/
 env/
 ENV/
+
+# PyInstaller build output
+build/
+dist/
+*.spec
 
 # Environment / secrets
 .env
@@ -24,5 +30,5 @@ ENV/
 .DS_Store
 Thumbs.db
 
-# Claude Code local settings (machine-specific permissions)
+# Local machine-specific settings
 .claude/settings.local.json

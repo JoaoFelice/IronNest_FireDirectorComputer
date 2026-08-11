@@ -24,7 +24,28 @@ elevationDeg = (distanceKm / maxRangeKm) * 60
 
 Charges range from 1 to 6, elevation from 0° to 60°, direction (if given) from 0° to 360°.
 
-## Running locally
+## Running it
+
+### Windows executable (no Python required)
+
+Grab `IronNestBallistics.exe` and double-click it. A console window opens and prints two addresses:
+
+```
+On this PC:      http://127.0.0.1:5000
+On your network: http://<your-lan-ip>:5000
+```
+
+Open the first on the same machine, or share the second with anyone on the same Wi-Fi/LAN so they can use it from their own device. Leave the console window open — closing it stops the server.
+
+Don't have a prebuilt executable? Build your own from source (requires Python 3.12+ and PowerShell):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File build.ps1
+```
+
+This produces `dist\IronNestBallistics.exe`.
+
+### From source
 
 Requires Python 3.12+.
 
@@ -32,16 +53,6 @@ Requires Python 3.12+.
 pip install -r requirements.txt
 python app.py
 ```
-
-The app serves on [http://localhost:5000](http://localhost:5000).
-
-## Running with Docker
-
-```bash
-docker compose up --build
-```
-
-The app serves on [http://localhost:8080](http://localhost:8080).
 
 ## API
 
