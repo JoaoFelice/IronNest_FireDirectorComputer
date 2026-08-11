@@ -28,7 +28,7 @@ Charges range from 1 to 6, elevation from 0° to 60°, direction (if given) from
 
 ### Windows executable (no Python required)
 
-Grab `IronNestBallistics.exe` and double-click it. A console window opens and prints two addresses:
+Download `IronNestBallistics.exe` from the [Releases page](https://github.com/JoaoFelice/IronNest_FireDirectorComputer/releases) and double-click it. A console window opens and prints two addresses:
 
 ```
 On this PC:      http://127.0.0.1:5000
@@ -37,7 +37,17 @@ On your network: http://<your-lan-ip>:5000
 
 Open the first on the same machine, or share the second with anyone on the same Wi-Fi/LAN so they can use it from their own device. Leave the console window open — closing it stops the server.
 
-Don't have a prebuilt executable? Build your own from source (requires Python 3.12+ and PowerShell):
+**Verifying the download.** Every release is built automatically by [GitHub Actions](.github/workflows/release.yml) directly from the tagged source — not from anyone's personal machine — and published with a SHA-256 checksum and a signed build attestation. To verify what you downloaded actually came from this repo's source:
+
+```bash
+# checksum matches the .sha256 file published alongside the release
+certutil -hashfile IronNestBallistics.exe SHA256
+
+# cryptographic proof it was built by this repo's workflow, not tampered with
+gh attestation verify IronNestBallistics.exe --owner JoaoFelice
+```
+
+Don't trust prebuilt binaries at all? Build your own from source (requires Python 3.12+ and PowerShell):
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File build.ps1
@@ -67,6 +77,15 @@ python app.py
 - `direcao` (optional, 0–360) — bearing; logged alongside the shot, not used in the formula.
 
 Returns `{ "elevacao": <degrees> }` on success, or `{ "erro": "<message>" }` with a `400` status on invalid input.
+
+## Cutting a release
+
+Push a version tag and the [release workflow](.github/workflows/release.yml) builds the exe and publishes it automatically:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
 
 ## License
 
