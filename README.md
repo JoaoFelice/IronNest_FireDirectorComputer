@@ -26,7 +26,7 @@ Charges range from 1 to 6, elevation from 0° to 60°, direction (if given) from
 
 ## Running it
 
-### Option 1: Download the release (Windows only, no Python needed)
+### Windows: download the release (no Python needed)
 
 1. Go to the [Releases page](https://github.com/JoaoFelice/IronNest_FireDirectorComputer/releases) and download `IronNestBallistics.exe` from the latest release.
 2. Double-click it. A console window opens and prints two addresses:
@@ -47,33 +47,31 @@ certutil -hashfile IronNestBallistics.exe SHA256
 gh attestation verify IronNestBallistics.exe --owner JoaoFelice
 ```
 
-### Option 2: Build and run from source (Windows, Linux, macOS)
+### Run from source with Python (Windows, Linux, macOS)
 
-Requires [Python 3.12+](https://www.python.org/downloads/). The app itself is plain Flask/Python, so it runs the same way on all three.
-
-**Windows** — build your own `.exe` (same process the official release uses, just on your machine instead of GitHub's), from PowerShell in the project folder:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File build.ps1
-```
-
-This produces `dist\IronNestBallistics.exe`. Or skip the exe and run it directly:
-
-```powershell
-pip install -r requirements.txt
-python app.py
-```
-
-**Linux / macOS** — there's no prebuilt executable yet, so run it directly with Python:
+This isn't Windows-only — the app is plain Flask/Python and runs the same way on any OS. Requires [Python 3.12+](https://www.python.org/downloads/).
 
 ```bash
+# Windows
+pip install -r requirements.txt
+python app.py
+
+# Linux / macOS
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 python app.py
 ```
 
-Either way, it prints the same two addresses as the Windows release (`http://127.0.0.1:5000` and a network address) — open the first locally, or share the second with others on the same Wi-Fi/LAN.
+It prints the same two addresses as the packaged release (`http://127.0.0.1:5000` and a network address) — open the first locally, or share the second with others on the same Wi-Fi/LAN.
+
+On Windows, you can also build your own `.exe` this way — the same process the official release uses, just run on your machine instead of GitHub's:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File build.ps1
+```
+
+This produces `dist\IronNestBallistics.exe`. No prebuilt executables are provided for Linux or macOS — running from source with Python is the way to use it there.
 
 ## License
 
