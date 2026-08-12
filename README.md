@@ -10,7 +10,7 @@ Not affiliated with or endorsed by the makers of Iron Nest. This is a fan-made c
 - **Auto charge selection** — leave charge unset and the console picks the smallest one that reaches the target.
 - **Fire log** — every calculated shot is queued, tracked, and can be marked fired or deleted.
 - **Two display themes** — FDC and Ironclad, switchable at runtime, saved locally.
-- **Built-in field manual** — an in-app help modal walks through the controls.
+- **Time of Flight calculation** — calculates time until impact for fired shell.
 - Everything runs client-side after load — shots and settings are stored in the browser, nothing is sent anywhere outside your network.
 
 ## How the math works
