@@ -24,7 +24,7 @@
     activeField: "distancia", // "distancia" | "direcao"
     raw: { distancia: "", direcao: "" }, // digits only, as typed
     carga: null, // 1..6, persists across calculations
-    tiros: [], // {id, elevacao, cargas, direcao, disparado} — chronological, oldest first
+    tiros: [], // {id, elevacao, tempoVoo, cargas, direcao, disparado} — chronological, oldest first
   };
 
   /* ------------------------------------------------------------------
@@ -47,6 +47,7 @@
     tiroListFired: document.getElementById("tiro-list-fired"),
     heroElevacao: document.getElementById("hero-elevacao"),
     heroDirecao: document.getElementById("hero-direcao"),
+    heroTempoVoo: document.getElementById("hero-tempo-voo"),
     helpBtn: document.getElementById("help-btn"),
     helpModal: document.getElementById("help-modal"),
     helpModalClose: document.getElementById("help-modal-close"),
@@ -326,6 +327,7 @@
 
       registrarTiro({
         elevacao: data.elevacao,
+        tempoVoo: data.tempo_voo,
         cargas: cargas,
         direcao: direcao,
         distancia: distancia,
@@ -367,8 +369,16 @@
     return `tiro-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   }
 
-  function registrarTiro({ elevacao, cargas, direcao, distancia }) {
-    const tiro = { id: makeId(), elevacao, cargas, direcao, distancia, disparado: false };
+  function registrarTiro({ elevacao, tempoVoo, cargas, direcao, distancia }) {
+    const tiro = {
+      id: makeId(),
+      elevacao,
+      tempoVoo,
+      cargas,
+      direcao,
+      distancia,
+      disparado: false,
+    };
     state.tiros.push(tiro); // chronological — newest at the end
     saveTiros();
     renderTiroList(); // also updates the highlighted elevation readout
@@ -423,6 +433,14 @@
     el.heroDirecao.innerHTML = `${display}<span class="unit">&deg;</span>`;
   }
 
+  function updateHeroTempoVoo(tempoVoo) {
+    const display =
+      tempoVoo === null || tempoVoo === undefined
+        ? "--"
+        : Number(tempoVoo).toFixed(1);
+    el.heroTempoVoo.innerHTML = `${display}<span class="unit">s</span>`;
+  }
+
   function renderTiroRow(tiro) {
     const li = document.createElement("li");
     li.className = tiro.disparado ? "tiro-row is-fired" : "tiro-row";
@@ -436,6 +454,10 @@
       tiro.distancia === null || tiro.distancia === undefined
         ? "--"
         : `${Number(tiro.distancia)}km`;
+    const tempoVooDisplay =
+      tiro.tempoVoo === null || tiro.tempoVoo === undefined
+        ? "--"
+        : `${Number(tiro.tempoVoo).toFixed(1)}s`;
 
     const data = document.createElement("div");
     data.className = "tiro-data";
@@ -444,6 +466,7 @@
       <span class="tiro-elevacao"><span class="tiro-field-label">ELEV</span><strong>${Number(tiro.elevacao).toFixed(2)}&deg;</strong></span>
       <span class="tiro-carga"><span class="tiro-field-label">CHG</span><strong>${tiro.cargas}</strong></span>
       <span class="tiro-direcao"><span class="tiro-field-label">DIR</span><strong>${direcaoDisplay}</strong></span>
+      <span class="tiro-tempovoo"><span class="tiro-field-label">TOF</span><strong>${tempoVooDisplay}</strong></span>
     `;
 
     const btnConfirm = document.createElement("button");
@@ -478,6 +501,7 @@
     if (ativos.length === 0) {
       el.heroElevacao.innerHTML = `--.-<span class="unit">&deg;</span>`;
       el.heroDirecao.innerHTML = `--<span class="unit">&deg;</span>`;
+      el.heroTempoVoo.innerHTML = `--<span class="unit">s</span>`;
       el.heroReadout.classList.remove("has-value");
       return;
     }
@@ -486,6 +510,7 @@
     const proximo = ativos[0];
     updateHeroElevacao(proximo.elevacao);
     updateHeroDirecao(proximo.direcao);
+    updateHeroTempoVoo(proximo.tempoVoo);
   }
 
   function renderTiroList() {

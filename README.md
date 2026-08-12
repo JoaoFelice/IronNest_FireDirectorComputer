@@ -6,7 +6,7 @@ Not affiliated with or endorsed by the makers of Iron Nest. This is a fan-made c
 
 ## Features
 
-- **Fire solution calculator** — distance + charge in, elevation out.
+- **Fire solution calculator** — distance + charge in, elevation and time of flight out.
 - **Auto charge selection** — leave charge unset and the console picks the smallest one that reaches the target.
 - **Fire log** — every calculated shot is queued, tracked, and can be marked fired or deleted.
 - **Two display themes** — FDC and Ironclad, switchable at runtime, saved locally.
@@ -23,6 +23,13 @@ elevationDeg = (distanceKm / maxRangeKm) * 60
 ```
 
 Charges range from 1 to 6, elevation from 0° to 60°, direction (if given) from 0° to 360°.
+
+**Time of flight (TOF)** isn't computed from a formula — it's interpolated from in-game
+readings (`time of flight calculation.xlsx`): for each charge, a handful of elevation/time
+pairs were timed directly in-game, and `app.py`'s `calcular_tempo_voo` linearly interpolates
+between them. The relationship is close to linear but not exact (charge 1 in particular
+flattens out near max elevation), which is why it's driven by real readings instead of a
+fitted curve.
 
 ## Running it
 

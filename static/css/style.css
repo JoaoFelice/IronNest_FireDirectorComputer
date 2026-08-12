@@ -978,6 +978,12 @@ p { margin: 0; }
 
 .hero-value .unit { font-size: 1.3rem; opacity: 0.85; }
 
+.hero-meta-row {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
 .hero-rotation {
   display: flex;
   align-items: baseline;
@@ -1110,7 +1116,8 @@ p { margin: 0; }
 .tiro-row.is-fired .tiro-distancia strong,
 .tiro-row.is-fired .tiro-elevacao strong,
 .tiro-row.is-fired .tiro-carga strong,
-.tiro-row.is-fired .tiro-direcao strong {
+.tiro-row.is-fired .tiro-direcao strong,
+.tiro-row.is-fired .tiro-tempovoo strong {
   color: var(--text-muted);
 }
 
@@ -1144,7 +1151,8 @@ p { margin: 0; }
 .tiro-elevacao strong { color: var(--accent); font-weight: 700; }
 .tiro-distancia strong,
 .tiro-carga strong,
-.tiro-direcao strong { color: var(--text-primary); font-weight: 600; }
+.tiro-direcao strong,
+.tiro-tempovoo strong { color: var(--text-primary); font-weight: 600; }
 
 .tiro-row-actions {
   display: flex;

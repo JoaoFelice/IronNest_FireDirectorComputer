@@ -31,6 +31,23 @@ DIRECAO_MAX = 360
 KM_POR_CARGA = 5
 ELEVACAO_MAXIMA_GRAUS = 60
 
+# Time-of-flight calibration points, (elevation_deg, time_s), one list per
+# charge count, sorted ascending by elevation. Measured in-game by the user
+# (see "time of flight calculation.xlsx") rather than derived from a formula
+# -- the elevation/time relationship isn't purely linear (charge 1 in
+# particular flattens out near max elevation), so real readings are
+# interpolated instead of extrapolated from a fitted curve. (0, 0) is an
+# anchor point, not a measurement: every charge's readings extrapolate back
+# to ~0s at 0deg, so it lets the shortest shots interpolate too.
+TOF_TABLE = {
+    1: [(0, 0), (12.6, 5), (25.2, 10), (37.8, 15), (50.35, 20), (60, 28.95)],
+    2: [(0, 0), (7.8, 5), (15.6, 10), (23.5, 15), (31.25, 20), (39.1, 25), (46.95, 30), (54.8, 35), (60, 38.1)],
+    3: [(0, 0), (7.6, 5), (15.3, 10), (22.95, 15), (30.55, 20), (38.2, 25), (45.85, 30), (53.55, 35), (60, 39.1)],
+    4: [(0, 0), (7.9, 5), (15.8, 10), (23.7, 15), (31.6, 20), (39.5, 25), (47.45, 30), (55.4, 35), (60, 38)],
+    5: [(0, 0), (7.8, 5), (15.6, 10), (23.4, 15), (31.2, 20), (39, 25), (46.7, 30), (54.5, 35), (60, 38.5)],
+    6: [(0, 0), (7, 5), (14, 10), (21, 15), (28, 20), (35, 25), (42, 30), (49, 35), (56, 40), (60, 43)],
+}
+
 
 def calcular_elevacao(distancia_km, cargas):
     """Calculate the elevation in degrees from the distance and number of charges.
@@ -49,6 +66,28 @@ def calcular_elevacao(distancia_km, cargas):
 
     elevacao_graus = (distancia_km / alcance_maximo_km) * ELEVACAO_MAXIMA_GRAUS
     return elevacao_graus
+
+
+def calcular_tempo_voo(elevacao_graus, cargas):
+    """Interpolate the time of flight (seconds) for an elevation/charge pair.
+
+    Piecewise-linear interpolation between the measured calibration points
+    in TOF_TABLE[cargas]. Elevation is clamped to the table's range
+    (0-60deg) before interpolating.
+    """
+    pontos = TOF_TABLE[cargas]
+
+    if elevacao_graus <= pontos[0][0]:
+        return pontos[0][1]
+    if elevacao_graus >= pontos[-1][0]:
+        return pontos[-1][1]
+
+    for (e0, t0), (e1, t1) in zip(pontos, pontos[1:]):
+        if elevacao_graus <= e1:
+            fracao = (elevacao_graus - e0) / (e1 - e0)
+            return t0 + fracao * (t1 - t0)
+
+    return pontos[-1][1]  # unreachable given the clamps above
 
 
 def validar_payload(dados):
@@ -119,10 +158,16 @@ def api_calcular():
     try:
         distancia_km, cargas, direcao_graus = validar_payload(dados)
         elevacao_graus = calcular_elevacao(distancia_km, cargas)
+        tempo_voo_s = calcular_tempo_voo(elevacao_graus, cargas)
     except ValueError as exc:
         return jsonify({"erro": str(exc)}), 400
 
-    return jsonify({"elevacao": round(elevacao_graus, 2)})
+    return jsonify(
+        {
+            "elevacao": round(elevacao_graus, 2),
+            "tempo_voo": round(tempo_voo_s, 1),
+        }
+    )
 
 
 def get_lan_ip():
