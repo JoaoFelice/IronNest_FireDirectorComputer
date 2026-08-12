@@ -179,10 +179,16 @@
       <div class="hero-readout-inner">
         <span class="hero-label">NEXT ELEVATION</span>
         <span class="hero-value" id="hero-elevacao">--.-<span class="unit">°</span></span>
-        <span class="hero-rotation">
-          <span class="hero-rotation-label">ROT</span>
-          <span class="hero-rotation-value" id="hero-direcao">--<span class="unit">°</span></span>
-        </span>
+        <div class="hero-meta-row">
+          <span class="hero-rotation">
+            <span class="hero-rotation-label">ROT</span>
+            <span class="hero-rotation-value" id="hero-direcao">--<span class="unit">°</span></span>
+          </span>
+          <span class="hero-rotation">
+            <span class="hero-rotation-label">TOF</span>
+            <span class="hero-rotation-value" id="hero-tempo-voo">--<span class="unit">s</span></span>
+          </span>
+        </div>
       </div>
     </div>
 
@@ -291,6 +297,13 @@
             <span class="help-step-text">
               Marking a shot fired moves it out of the active list into its own <strong>FIRED</strong>
               section, which always sits below the active list, in its own scroll box.
+            </span>
+          </li>
+          <li>
+            <span class="help-step-text">
+              Each shot also shows a <strong>TOF</strong> (time of flight) estimate — how many
+              seconds the shell is in the air before impact. It's interpolated from in-game
+              readings taken at each charge and elevation, not a formula.
             </span>
           </li>
         </ul>
